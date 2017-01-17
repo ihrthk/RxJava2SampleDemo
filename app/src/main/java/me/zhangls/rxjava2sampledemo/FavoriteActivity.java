@@ -1,8 +1,10 @@
 package me.zhangls.rxjava2sampledemo;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.widget.Toast;
 
 import hu.akarnokd.rxjava.interop.RxJavaInterop;
@@ -22,55 +24,42 @@ public class FavoriteActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_favorite);
 
-
         check();
-
 
     }
 
     private void check() {
         String token = null;
 
-        Observable.just(token)
-                .retryWhen(new Function<Observable<Throwable>, ObservableSource<String>>() {
-                               @Override
-                               public ObservableSource<String> apply
-                                       (Observable<Throwable> throwableObservable) throws Exception {
+        Observable.just("")
+                .flatMap(new Function<String, ObservableSource<Boolean>>() {
+                    @Override
+                    public ObservableSource<Boolean> apply(String s) throws Exception {
+                        if (TextUtils.isEmpty(s)) {
+                            rx.Observable<Result<FavoriteActivity>> observable = RxActivityResult
+                                    .on(FavoriteActivity.this)
+                                    .startIntent(new Intent(FavoriteActivity.this, LoginActivity.class));
 
-
-                                   return throwableObservable.flatMap(new Function<Throwable, ObservableSource<String>>() {
-                                       @Override
-                                       public ObservableSource<String> apply(Throwable throwable) throws Exception {
-                                           rx.Observable<Result<FavoriteActivity>> observable = RxActivityResult
-                                                   .on(FavoriteActivity.this)
-                                                   .startIntent(new Intent(FavoriteActivity.this, LoginActivity.class));
-
-                                           if (throwable instanceof IllegalArgumentException
-                                                   || throwable instanceof NullPointerException) {
-                                               return RxJavaInterop
-                                                       .toV2Observable(observable)
-                                                       .map(new Function<Result<FavoriteActivity>, String>() {
-                                                           @Override
-                                                           public String apply(Result<FavoriteActivity> result) throws Exception {
-                                                               return result.data().getStringExtra("token");
-                                                           }
-                                                       });
-                                           }
-                                           return Observable.error(throwable);
-                                       }
-                                   });
-
-                               }
-                           }
-
-                )
+                            return RxJavaInterop
+                                    .toV2Observable(observable)
+                                    .map(new Function<Result<FavoriteActivity>, Boolean>() {
+                                        @Override
+                                        public Boolean apply(Result<FavoriteActivity> result) throws Exception {
+                                            return result.resultCode() == Activity.RESULT_OK;
+                                        }
+                                    });
+                        } else {
+                            return Observable.just(true);
+                        }
+                    }
+                })
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .observeOn(Schedulers.io())
-                .map(new Function<String, String>() {
+                .map(new Function<Boolean, String>() {
                          @Override
-                         public String apply(String s) throws Exception {
+                         public String apply(Boolean aBoolean) throws Exception {
                              Thread.sleep(500);
-                             return s;
+                             return aBoolean ? "success" : "failure";
                          }
                      }
 
@@ -79,10 +68,9 @@ public class FavoriteActivity extends AppCompatActivity {
                 .subscribe(new Consumer<String>() {
                                @Override
                                public void accept(String s) throws Exception {
-                                   Toast.makeText(FavoriteActivity.this, "ok", Toast.LENGTH_SHORT).show();
+                                   Toast.makeText(FavoriteActivity.this, s, Toast.LENGTH_SHORT).show();
                                }
                            }
-
                 );
     }
 
